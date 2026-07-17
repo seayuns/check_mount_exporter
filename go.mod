@@ -1,4 +1,4 @@
-module github.com/treydock/check_mount_exporter
+module github.com/seayuns/check_mount_exporter
 
 go 1.22
 
