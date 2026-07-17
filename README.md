@@ -1,9 +1,5 @@
 # check_mount Prometheus exporter
 
-[![GitHub release](https://img.shields.io/github/v/release/treydock/check_mount_exporter?include_prereleases&sort=semver)](https://github.com/treydock/check_mount_exporter/releases/latest)
-![GitHub All Releases](https://img.shields.io/github/downloads/treydock/check_mount_exporter/total)
-[![codecov](https://codecov.io/gh/treydock/check_mount_exporter/branch/master/graph/badge.svg)](https://codecov.io/gh/treydock/check_mount_exporter)
-
 # Check mount Prometheus exporter
 
 The `check_mount_exporter` produces metrics about mount points mount status and if that mountpoint is read-only or read-write.
@@ -42,15 +38,27 @@ For read-write mounts, the probe creates a temporary file, writes and reads it b
 
 ## Docker
 
-Example of running the Docker container
+Build the image for the current platform:
 
 ```
-docker run -d -p 9304:9304 -v "/:/host:ro,rslave" treydock/check_mount_exporter --path.rootfs=/host
+docker build -t check_mount_exporter:latest .
+```
+
+Build multi-architecture images for `linux/amd64` and `linux/arm64`:
+
+```
+docker buildx build --platform linux/amd64,linux/arm64 -t check_mount_exporter:latest .
+```
+
+Example of running the Docker container:
+
+```
+docker run -d -p 9304:9304 -v "/:/host:ro,rslave" check_mount_exporter:latest --path.rootfs=/host
 ```
 
 ## Install
 
-Download the [latest release](https://github.com/treydock/check_mount_exporter/releases)
+Download the [latest release](https://github.com/seayuns/check_mount_exporter/releases)
 
 Tagged releases publish `linux/amd64` and `linux/arm64` tar.gz assets to GitHub Release.
 

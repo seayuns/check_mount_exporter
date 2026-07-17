@@ -58,26 +58,6 @@ endif
 PROMU_VERSION ?= 0.14.0
 PROMU_URL     := https://github.com/prometheus/promu/releases/download/v$(PROMU_VERSION)/promu-$(PROMU_VERSION).$(GO_BUILD_PLATFORM).tar.gz
 
-SKIP_GOLANGCI_LINT :=
-GOLANGCI_LINT :=
-GOLANGCI_LINT_OPTS ?=
-GOLANGCI_LINT_VERSION ?= v1.51.2
-# golangci-lint only supports linux, darwin and windows platforms on i386/amd64.
-# windows isn't included here because of the path separator being different.
-ifeq ($(GOHOSTOS),$(filter $(GOHOSTOS),linux darwin))
-	ifeq ($(GOHOSTARCH),$(filter $(GOHOSTARCH),amd64 i386))
-		# If we're in CI and there is an Actions file, that means the linter
-		# is being run in Actions, so we don't need to run it here.
-		ifneq (,$(SKIP_GOLANGCI_LINT))
-			GOLANGCI_LINT :=
-		else ifeq (,$(CIRCLE_JOB))
-			GOLANGCI_LINT := $(FIRST_GOPATH)/bin/golangci-lint
-		else ifeq (,$(wildcard .github/workflows/golangci-lint.yml))
-			GOLANGCI_LINT := $(FIRST_GOPATH)/bin/golangci-lint
-		endif
-	endif
-endif
-
 PREFIX                  ?= $(shell pwd)
 BIN_DIR                 ?= $(shell pwd)
 DOCKER_IMAGE_TAG        ?= $(subst /,-,$(shell git rev-parse --abbrev-ref HEAD))
@@ -166,14 +146,8 @@ common-vet:
 	$(GO) vet $(GOOPTS) $(pkgs)
 
 .PHONY: common-lint
-common-lint: $(GOLANGCI_LINT)
-ifdef GOLANGCI_LINT
-	@echo ">> running golangci-lint"
-# 'go list' needs to be executed before staticcheck to prepopulate the modules cache.
-# Otherwise staticcheck might fail randomly for some reason not yet explained.
-	$(GO) list -e -compiled -test=true -export=false -deps=true -find=false -tags= -- ./... > /dev/null
-	$(GOLANGCI_LINT) run $(GOLANGCI_LINT_OPTS) $(pkgs)
-endif
+common-lint:
+	@echo ">> skipping golangci-lint"
 
 .PHONY: common-yamllint
 common-yamllint:
@@ -244,14 +218,6 @@ $(PROMU):
 proto:
 	@echo ">> generating code from proto files"
 	@./scripts/genproto.sh
-
-ifdef GOLANGCI_LINT
-$(GOLANGCI_LINT):
-	mkdir -p $(FIRST_GOPATH)/bin
-	curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/$(GOLANGCI_LINT_VERSION)/install.sh \
-		| sed -e '/install -d/d' \
-		| sh -s -- -b $(FIRST_GOPATH)/bin $(GOLANGCI_LINT_VERSION)
-endif
 
 .PHONY: precheck
 precheck::

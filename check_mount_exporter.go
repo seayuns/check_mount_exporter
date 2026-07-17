@@ -305,7 +305,6 @@ func main() {
 	level.Info(logger).Log("msg", "Starting Server", "address", *listenAddress)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		//nolint:errcheck
 		w.Write([]byte(`<html>
              <head><title>check_mount Exporter</title></head>
              <body>
