@@ -1,0 +1,91 @@
+name: build
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go test ./...
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch:
+          - amd64
+          - arm64
+    env:
+      GOOS: linux
+      GOARCH: ${{ matrix.arch }}
+      CGO_ENABLED: 0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build binary
+        run: |
+          mkdir -p dist
+          VERSION="${GITHUB_REF_NAME}"
+          REVISION="$(git rev-parse --short HEAD)"
+          BRANCH="${GITHUB_REF_NAME}"
+          BUILD_DATE="$(date -u +%Y%m%d-%H:%M:%S)"
+          LDFLAGS="-s -w \
+            -X github.com/prometheus/common/version.Version=${VERSION} \
+            -X github.com/prometheus/common/version.Revision=${REVISION} \
+            -X github.com/prometheus/common/version.Branch=${BRANCH} \
+            -X github.com/prometheus/common/version.BuildUser=github-actions \
+            -X github.com/prometheus/common/version.BuildDate=${BUILD_DATE}"
+          go build -trimpath -ldflags "${LDFLAGS}" -o "dist/check_mount_exporter-linux-${GOARCH}" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: check_mount_exporter-linux-${{ matrix.arch }}
+          path: dist/check_mount_exporter-linux-${{ matrix.arch }}
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download amd64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: check_mount_exporter-linux-amd64
+          path: dist/amd64
+      - name: Download arm64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: check_mount_exporter-linux-arm64
+          path: dist/arm64
+      - name: Package release assets
+        run: |
+          mkdir -p release
+          for arch in amd64 arm64; do
+            pkg="check_mount_exporter-${GITHUB_REF_NAME}.linux-${arch}"
+            mkdir -p "release/${pkg}"
+            cp "dist/${arch}/check_mount_exporter-linux-${arch}" "release/${pkg}/check_mount_exporter"
+            tar -C "release/${pkg}" -czf "release/${pkg}.tar.gz" check_mount_exporter
+          done
+      - name: Upload GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: release/*.tar.gz
+          generate_release_notes: true
